@@ -4,7 +4,7 @@ param baseName string = 'hotellab'
 param location string = resourceGroup().location
 @description('Basic = cheapest, no Kafka. Use Standard to enable the Kafka endpoint (paid).')
 @allowed(['Basic', 'Standard'])
-param eventHubSku string = 'Basic'
+param eventHubSku string = 'Standard'
 
 var suffix = uniqueString(resourceGroup().id)
 var hubName = 'hotel-events'
@@ -33,7 +33,7 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${baseName}-plan-${suffix}'
   location: location
   kind: 'linux'
-  sku: { name: 'F1', tier: 'Free' }
+  sku: { name: 'B1', tier: 'Basic' }
   properties: { reserved: true }
 }
 
