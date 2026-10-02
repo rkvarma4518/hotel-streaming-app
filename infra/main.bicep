@@ -1,7 +1,7 @@
 // Event Hubs namespace + hub + free App Service (F1) running the Python (FastAPI) app.
 @description('Short prefix for resource names (lowercase letters/numbers).')
 param baseName string = 'hotellab'
-param location string = resourceGroup().location
+param location string = 'centralindia'
 @description('Basic = cheapest, no Kafka. Use Standard to enable the Kafka endpoint (paid).')
 @allowed(['Basic', 'Standard'])
 param eventHubSku string = 'Standard'
