@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stay &amp; Stream: book hotels across India</title>
+<style>
+:root{--bg:#f3f1ec;--ink:#1d2b2a;--mut:#667775;--line:#ddd8cd;--card:#fff;--brass:#a97a2c;--sea:#1f6f68;--sea-d:#17554f}
+@media (prefers-color-scheme:dark){:root{--bg:#121c1b;--ink:#e8efee;--mut:#97aba8;--line:#2a3d3b;--card:#192725;--brass:#d6a653;--sea:#3f9f96;--sea-d:#5cb8ae}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+h1,h2,h3{font-family:Georgia,serif;font-weight:600;margin:0}
+a{color:var(--sea)}
+.top{display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:auto;padding:1rem 1.25rem}
+.top a{text-decoration:none;font-family:Georgia,serif;font-size:1.3rem;color:var(--ink)}
+.hero{background:linear-gradient(135deg,#17554f,#1f6f68 60%,#a97a2c);color:#fff;padding:2.5rem 1.25rem 3.5rem}
+.hero>div{max-width:1100px;margin:auto}.hero h1{font-size:clamp(1.8rem,4vw,2.8rem);max-width:18ch}.hero p{opacity:.9;margin:.5rem 0 1.2rem}
+.search{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:.6rem;background:var(--card);color:var(--ink);padding:.8rem;border-radius:12px}
+@media(max-width:800px){.search{grid-template-columns:1fr 1fr}.search .go{grid-column:1/-1}}
+label{font-size:.8rem;color:var(--mut);display:block}
+input,select{font:inherit;width:100%;padding:.5rem .6rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:.6rem 1.2rem;background:var(--sea);color:#fff}button:hover{background:var(--sea-d)}
+button.alt{background:transparent;color:var(--sea);border:1px solid var(--sea)}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+main{max-width:1100px;margin:auto;padding:1.5rem 1.25rem 3rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:1.2rem;margin-top:1rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer}
+.card:focus-visible{outline-offset:-2px}
+.art{height:150px;display:flex;align-items:flex-end;padding:.8rem 1rem;color:#fff;font-family:Georgia,serif;font-size:1.4rem}
+.card .body{padding:.9rem 1rem 1rem}.meta{color:var(--mut);font-size:.9rem}
+.price{display:flex;justify-content:space-between;align-items:center;margin-top:.6rem}.price b{font-size:1.2rem}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:.1rem .7rem;font-size:.85rem;margin:0 .4rem .4rem 0}
+.detail{display:grid;grid-template-columns:1.4fr 1fr;gap:1.5rem;margin-top:1rem}
+@media(max-width:860px){.detail{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem}
+.panel h3{margin-bottom:.6rem}
+.opt{display:flex;gap:.6rem;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:.55rem .7rem;margin-bottom:.45rem;cursor:pointer}
+.opt input{width:auto;margin-top:.3rem}.opt span{flex:1}.opt b{white-space:nowrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.8rem}
+.sum div{display:flex;justify-content:space-between;padding:.15rem 0}.sum .t{border-top:1px solid var(--line);margin-top:.4rem;padding-top:.5rem;font-size:1.2rem;font-weight:600}
+.err{color:#b3402f;min-height:1.4em;font-size:.9rem}
+footer{max-width:1100px;margin:auto;padding:1rem 1.25rem 2rem;color:var(--mut);font-size:.85rem}
+.ok{text-align:center;max-width:520px;margin:2rem auto}
+</style></head><body>
+<div class="top"><a href="#/" id="home">Stay &amp; Stream</a><span class="meta">Hotels across India</span></div>
+<div id="app"></div>
+<footer>Developers: every search and booking here is also sent to an event stream. <a href="/learn.html">See the live event stream</a>.</footer>
+<script>
+const $=s=>document.querySelector(s), app=$('#app');
+const money=n=>'$'+n.toLocaleString('en-US');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hue=id=>(parseInt(id.slice(1))*57+150)%360;
+const art=h=>`<div class="art" style="background:linear-gradient(135deg,hsl(${hue(h.id)} 45% 28%),hsl(${(hue(h.id)+40)%360} 50% 45%))">${esc(h.city)}</div>`;
+const today=()=>new Date(Date.now()+864e5).toISOString().slice(0,10);
+let last={q:'',guests:1,nights:2,checkIn:today()}, done=null;
+
+async function home(){
+  const cities=[...new Set((await (await fetch('/api/hotels')).json()).map(h=>h.city))];
+  app.innerHTML=`<div class="hero"><div><h1>Find your next stay</h1><p>Search by city or hotel name, pick a room and add meals.</p>
+  <form class="search" id="sf"><div><label for="q">Where to?</label><input id="q" list="cities" placeholder="City or hotel, e.g. Jaipur" value="${esc(last.q)}"><datalist id="cities">${cities.map(c=>`<option>${c}</option>`).join('')}</datalist></div>
+  <div><label for="ci">Check-in</label><input id="ci" type="date" min="${today()}" value="${last.checkIn}"></div>
+  <div><label for="ni">Nights</label><input id="ni" type="number" min="1" max="30" value="${last.nights}"></div>
+  <div><label for="gu">Guests</label><input id="gu" type="number" min="1" max="6" value="${last.guests}"></div>
+  <button class="go">Search</button></form></div></div>
+  <main><h2 id="rt"></h2><div class="grid" id="res"></div></main>`;
+  $('#sf').onsubmit=e=>{e.preventDefault();last={q:$('#q').value,checkIn:$('#ci').value,nights:+$('#ni').value||1,guests:+$('#gu').value||1};search(true)};
+  search(false);
+}
+async function search(track){
+  const list=await (await fetch('/api/hotels'+(last.q&&track!==undefined?`?q=${encodeURIComponent(last.q)}`:''))).json();
+  $('#rt').textContent=last.q?`${list.length} hotel${list.length==1?'':'s'} for "${last.q}"`:'Popular hotels';
+  $('#res').innerHTML=list.length?list.map(h=>`<article class="card" tabindex="0" data-id="${h.id}">${art(h)}<div class="body"><h3>${esc(h.name)}</h3>
+   <div class="meta">${esc(h.city)}, ${'★'.repeat(h.stars)} ${h.rating}</div><div class="price"><span class="meta">from</span><b>${money(h.fromPrice)} <small class="meta">/ night</small></b></div></div></article>`).join(''):'<p>No hotels match. Try another city, or clear the search.</p>';
+  document.querySelectorAll('.card').forEach(c=>{const go=()=>location.hash='#/hotel/'+c.dataset.id;c.onclick=go;c.onkeydown=e=>e.key==='Enter'&&go()});
+}
+async function hotel(id){
+  const [h,meals]=await Promise.all([fetch('/api/hotels/'+id).then(r=>r.json()),fetch('/api/meals').then(r=>r.json())]);
+  if(h.error){app.innerHTML='<main><p>Hotel not found. <a href="#/">Back to search</a></p></main>';return}
+  app.innerHTML=`<main><a href="#/">Back to results</a><div class="detail"><div>${art(h).replace('height:150px','height:230px')}
+  <h1 style="margin-top:.8rem">${esc(h.name)}</h1><p class="meta">${esc(h.city)}, ${'★'.repeat(h.stars)} rated ${h.rating}</p><p>${esc(h.description)}</p>
+  <div>${h.amenities.map(a=>`<span class="chip">${esc(a)}</span>`).join('')}</div></div>
+  <form class="panel" id="bf"><h3>Book your stay</h3>
+   <label>Room</label>${h.rooms.map((r,i)=>`<label class="opt"><input type="radio" name="room" value="${r.id}" data-p="${r.price}" ${i?'':'checked'}><span>${esc(r.type)}</span><b>${money(r.price)}/night</b></label>`).join('')}
+   <div class="two"><div><label for="ci">Check-in</label><input id="ci" type="date" min="${today()}" value="${last.checkIn}" required></div><div><label for="ni">Nights</label><input id="ni" type="number" min="1" max="30" value="${last.nights}"></div></div>
+   <div class="two"><div><label for="gu">Guests</label><input id="gu" type="number" min="1" max="6" value="${last.guests}"></div><div></div></div>
+   <label>Food</label>${meals.map((m,i)=>`<label class="opt"><input type="radio" name="meal" value="${m.id}" data-p="${m.price}" ${i?'':'checked'}><span>${esc(m.name)}<br><small class="meta">${esc(m.desc)}</small></span><b>${m.price?money(m.price)+' pp/night':'Free'}</b></label>`).join('')}
+   <div class="two" style="margin-top:.6rem"><div><label for="nm">Full name</label><input id="nm" required></div><div><label for="em">Email</label><input id="em" type="email" required></div></div>
+   <div class="sum" id="sum"></div><div class="err" id="err" role="alert"></div><button style="width:100%">Confirm booking</button></form></div></main>`;
+  const val=n=>Number(document.querySelector(n).value)||1, pick=n=>document.querySelector(`input[name=${n}]:checked`);
+  const calc=()=>{const n=val('#ni'),g=val('#gu'),r=+pick('room').dataset.p,m=+pick('meal').dataset.p;
+    $('#sum').innerHTML=`<div><span>Room: ${money(r)} x ${n} night${n>1?'s':''}</span><span>${money(r*n)}</span></div><div><span>Food: ${money(m)} x ${g} guest${g>1?'s':''} x ${n}</span><span>${money(m*g*n)}</span></div><div class="t"><span>Total</span><span>${money(r*n+m*g*n)}</span></div>`};
+  $('#bf').oninput=calc;calc();
+  $('#bf').onsubmit=async e=>{e.preventDefault();
+    const body={roomId:pick('room').value,meal:pick('meal').value,checkIn:$('#ci').value,nights:val('#ni'),guests:val('#gu'),guest:$('#nm').value,email:$('#em').value};
+    const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json(); if(!r.ok){$('#err').textContent=d.error||'Booking failed. Please try again.';return}
+    done=d;location.hash='#/done'};
+}
+function confirmation(){
+  if(!done){location.hash='#/';return}
+  const d=done;app.innerHTML=`<main><div class="panel ok"><h1>Booking confirmed</h1><p>Reference <b>${esc(d.bookingId.slice(0,8).toUpperCase())}</b></p>
+  <p>${esc(d.hotelName)}, ${esc(d.roomType)}<br>${esc(d.checkIn)} for ${d.nights} night${d.nights>1?'s':''}, ${d.guests} guest${d.guests>1?'s':''}<br>Food: ${esc(d.meal)}</p>
+  <h2>Total ${money(d.total)}</h2><p><button onclick="location.hash='#/'">Book another stay</button></p></div></main>`;
+}
+function route(){const h=location.hash;window.scrollTo(0,0);
+  if(h.startsWith('#/hotel/'))hotel(h.slice(8));else if(h==='#/done')confirmation();else home()}
+addEventListener('hashchange',route);route();
+</script></body></html>

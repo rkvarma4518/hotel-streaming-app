@@ -1,0 +1,37 @@
+name: Deploy to Azure
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: rg-hotel-streaming-lab
+  LOCATION: centralindia
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy infrastructure (Bicep)
+        id: infra
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az group create -n $RESOURCE_GROUP -l $LOCATION
+            APP=$(az deployment group create -g $RESOURCE_GROUP \
+              --template-file infra/main.bicep \
+              --query properties.outputs.webAppName.value -o tsv)
+            echo "app=$APP" >> $GITHUB_OUTPUT
+
+      # App Service installs requirements.txt itself (SCM_DO_BUILD_DURING_DEPLOYMENT=true)
+      - name: Deploy app code
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ steps.infra.outputs.app }}
+          package: .

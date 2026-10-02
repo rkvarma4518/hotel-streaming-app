@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Developer view: live event stream</title>
+<style>
+:root{--bg:#eef3f1;--ink:#17302b;--mut:#5c726c;--line:#cfdcd7;--card:#fff;--brass:#a97a2c;--sea:#1f6f68}
+@media (prefers-color-scheme:dark){:root{--bg:#10201d;--ink:#e6efec;--mut:#93aaa4;--line:#26403b;--card:#17302b;--brass:#d6a653;--sea:#3f9f96}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+h1,h2{font-family:Georgia,serif;font-weight:600;margin:0}
+header{padding:2rem 1.25rem 1rem;max-width:1200px;margin:auto}
+header h1{font-size:2.2rem}header p{color:var(--mut);max-width:60ch;margin:.4rem 0 0}
+.badge{display:inline-block;border:1px solid var(--brass);color:var(--brass);padding:.1rem .6rem;border-radius:99px;font-size:.85rem;margin-top:.6rem}
+main{max-width:1200px;margin:auto;padding:0 1.25rem 3rem;display:grid;grid-template-columns:1.2fr 1fr;gap:1.5rem}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem 1.2rem}
+h2{font-size:1.3rem;margin-bottom:.6rem}
+.hotel{border-top:1px solid var(--line);padding:.8rem 0}.hotel:first-of-type{border-top:0}
+.hotel b{font-family:Georgia,serif;font-size:1.1rem}.meta{color:var(--mut);font-size:.9rem}
+.room{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.25rem 0}
+button,select,input{font:inherit;padding:.35rem .7rem;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+button{cursor:pointer;background:var(--sea);color:#fff;border-color:var(--sea)}button.alt{background:transparent;color:var(--sea)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem}
+.kpi{display:flex;gap:1.5rem;flex-wrap:wrap;margin:.3rem 0 .8rem}.kpi div{font-size:.85rem;color:var(--mut)}.kpi strong{display:block;font-size:1.5rem;color:var(--ink);font-family:Georgia,serif}
+#feed{max-height:380px;overflow:auto;font:13px/1.45 ui-monospace,Menlo,monospace}
+#feed div{padding:.3rem 0;border-top:1px solid var(--line)}
+.t-BookingCreated{color:var(--sea)}.t-SearchPerformed{color:var(--brass)}
+a{color:var(--sea)}code{background:var(--bg);padding:0 .3rem;border-radius:4px}
+</style></head><body>
+<header>
+  <h1>Developer view: live event stream</h1>
+  <p>Every search, hotel view and booking on the <a href="/">hotel site</a> becomes an event. Open the site in another tab, use it, and watch the events arrive here.</p>
+  <span class="badge" id="mode">Connecting</span>
+</header>
+<main>
+  <section>
+    <h2>How to read this</h2><p class="meta">Each line is one event. <code>[p0]</code> / <code>[p1]</code> is the Event Hub partition it was stored in; bookings for the same hotel always share a partition.</p><div id="hotels"></div><div class="row"><select id="city" hidden></select><input id="guest" hidden><input id="nights" hidden></div>
+  </section>
+  <section hidden>
+    <h2>Hotels</h2>
+    <div class="row"><select id="city" aria-label="City"><option value="">All cities</option></select>
+      <input id="guest" placeholder="Your name" value="Guest" aria-label="Guest name"><input id="nights" type="number" min="1" max="14" value="2" style="width:5rem" aria-label="Nights"></div>
+    <div id="hotels"></div>
+  </section>
+  <div style="display:grid;gap:1.5rem;align-content:start">
+    <section>
+      <h2>Live stream</h2>
+      <div class="kpi"><div>Events<strong id="k-total">0</strong></div><div>Bookings<strong id="k-book">0</strong></div><div>Revenue<strong id="k-rev">$0</strong></div></div>
+      <div class="row"><button id="sim">Send 20 random events</button><button class="alt" id="sim100">Send 100</button></div>
+      <div id="feed" aria-live="polite"></div>
+    </section>
+    <section>
+      <h2>Try the API</h2>
+      <p class="meta"><a href="/api/hotels">/api/hotels</a>, <a href="/api/hotels?city=Nashik">?city=Nashik</a>, <a href="/api/bookings">/api/bookings</a>, <a href="/api/stats">/api/stats</a>, <a href="/api/health">/api/health</a>.<br>
+      Post your own event: <code>POST /api/events</code> with <code>{"type":"Custom","note":"hi"}</code>. See the README for curl examples.</p>
+    </section>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+$('sim').onclick=()=>fetch('/api/simulate?count=20',{method:'POST'});
+$('sim100').onclick=()=>fetch('/api/simulate?count=100',{method:'POST'});
+function line(ev){const d=document.createElement('div');d.className='t-'+ev.type;
+  const x=ev.type==='BookingCreated'?`${ev.guest}, ${ev.hotelName}, $${ev.total}`:ev.city||ev.hotelName||'';
+  d.textContent=`[p${ev.partition}] ${ev.type} ${x}`;return d}
+function kpi(s){$('k-total').textContent=s.total;$('k-book').textContent=s.byType.BookingCreated||0;$('k-rev').textContent='$'+s.revenue}
+const es=new EventSource('/api/stream');
+es.onmessage=m=>{const d=JSON.parse(m.data);
+  if(d.snapshot){$('mode').textContent=d.mode==='eventhub'?'Mode: Azure Event Hubs':'Mode: local (no Event Hub configured)';$('feed').replaceChildren(...d.snapshot.map(line));kpi(d.stats)}
+  else{$('feed').prepend(line(d.event));kpi(d.stats)}};
+</script></body></html>
